@@ -1,10 +1,9 @@
 import requests
-import os
 from bs4 import BeautifulSoup
-import pywintypes
 import win32file
 import win32con
 from datetime import datetime, timedelta
+import os
 
 # Function to parse a webpage given its URL and append the title and URL to a file
 def parse_page(url, base_dir, processed_urls, creation_time):
@@ -37,8 +36,19 @@ def parse_page(url, base_dir, processed_urls, creation_time):
                 hint = item.next_sibling.strip()
                 hints.append(hint)
 
+        # Define the file path
+        file_path = os.path.join(base_dir, f"{date}.md")
+
+        # Check if the file already exists and contains the URL
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                if url in content:
+                    print("Data already exists in the file:", file_path)
+                    return
+
         # Write hints to a file named after the date
-        with open(f"{base_dir + date}.md", 'a', encoding='utf-8') as f:
+        with open(file_path, 'a', encoding='utf-8') as f:
             f.write("### Current Affairs\n")
             f.write(f"URL: {url}\n\n")
             for hint in hints:
@@ -46,7 +56,7 @@ def parse_page(url, base_dir, processed_urls, creation_time):
             f.write('\n')
 
         fh = win32file.CreateFile(
-            f"{base_dir + date}.md",
+            file_path,
             win32con.GENERIC_WRITE,
             0,
             None,
@@ -56,14 +66,14 @@ def parse_page(url, base_dir, processed_urls, creation_time):
         )
 
         win32file.SetFileTime(fh, creation_time, None, None)
-        print(creation_time)
+        print("File creation time set:", creation_time)
 
+        processed_urls.add(url)
     else:
         print("Failed to fetch the webpage:", url)
 
-
 # Function to visit and parse all links within <article> tags from a given URL
-def parse_articles_from_url(url, file_name):
+def parse_articles_from_url(url, base_dir):
     # Send a GET request to the URL
     response = requests.get(url)
 
@@ -80,7 +90,7 @@ def parse_articles_from_url(url, file_name):
 
         # Extract datetime to set pseudo-functional date_created metadata of files
         creation_time = datetime.now()
-        print(creation_time)
+        print("Starting creation time:", creation_time)
 
         for article_tag in article_tags:
             # Find all <a> tags within the current <article> tag
@@ -99,12 +109,9 @@ def parse_articles_from_url(url, file_name):
     else:
         print("Failed to fetch the webpage:", url)
 
-
 # Sample URL containing <article> tags
 url = "https://www.gktoday.in/gk-current-affairs-quiz-questions-answers/"
-# File name to which the information will be appended
-file_name = "parsed_data.txt"
 # Base directory where date-wise hint files will be stored
 base_dir = "C:\\Users\\justa\\Documents\\My Redemption Arc\\Everyday Things\\"
-# Call the parse_articles_from_url function with the URL and file name
-parse_articles_from_url(url, file_name)
+# Call the parse_articles_from_url function with the URL and base directory
+parse_articles_from_url(url, base_dir)
